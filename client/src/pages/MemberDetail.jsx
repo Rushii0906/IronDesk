@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ArrowLeft, MessageSquare, ShieldAlert, CreditCard, Plus, Calendar, Clock, CheckCircle2, Phone, Sparkles } from 'lucide-react';
+import { ArrowLeft, MessageSquare, ShieldAlert, CreditCard, Plus, Calendar, Clock, CheckCircle2, Phone, Sparkles, X } from 'lucide-react';
 
 export default function MemberDetail() {
   const { id } = useParams();
