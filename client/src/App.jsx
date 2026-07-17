@@ -1,6 +1,7 @@
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
+import { Capacitor } from '@capacitor/core';
 
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
@@ -36,12 +37,23 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+const RootSelector = () => {
+  const isElectron = navigator.userAgent.toLowerCase().includes('electron');
+  const isAppWrapper = Capacitor.isNativePlatform() || isElectron;
+
+  if (isAppWrapper) {
+    return <Navigate to="/app" replace />;
+  }
+
+  return <LandingPage />;
+};
+
 export default function App() {
   return (
     <Router>
       <Routes>
         {/* Public Marketing Landing Page */}
-        <Route path="/" element={<LandingPage />} />
+        <Route path="/" element={<RootSelector />} />
 
         {/* Private Operations Console */}
         <Route

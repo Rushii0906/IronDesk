@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const authMiddleware = require('../middleware/auth');
 
 // GET /api/plans - Get all plans
 router.get('/', (req, res) => {
@@ -14,7 +15,7 @@ router.get('/', (req, res) => {
 });
 
 // POST /api/plans - Create a new plan
-router.post('/', (req, res) => {
+router.post('/', authMiddleware, (req, res) => {
   try {
     const { name, duration_months, price } = req.body;
     if (!name || !duration_months || price === undefined) {
@@ -33,7 +34,7 @@ router.post('/', (req, res) => {
 });
 
 // PUT /api/plans/:id - Update an existing plan
-router.put('/:id', (req, res) => {
+router.put('/:id', authMiddleware, (req, res) => {
   try {
     const { id } = req.params;
     const { name, duration_months, price } = req.body;
@@ -57,7 +58,7 @@ router.put('/:id', (req, res) => {
 });
 
 // DELETE /api/plans/:id - Delete a plan
-router.delete('/:id', (req, res) => {
+router.delete('/:id', authMiddleware, (req, res) => {
   try {
     const { id } = req.params;
     const result = db.prepare('DELETE FROM plans WHERE id = ?').run(id);
