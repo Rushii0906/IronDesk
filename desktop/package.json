@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "main.js",
   "scripts": {
+    "build": "echo \"Desktop has no build step\"",
     "start": "electron ."
   },
   "dependencies": {
