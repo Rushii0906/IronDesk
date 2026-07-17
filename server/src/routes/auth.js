@@ -44,7 +44,10 @@ router.post('/setup', (req, res) => {
   }
 });
 
-// POST /api/auth/login - Admin login
+// POST /api/auth/login - Admin login with brute-force protection
+let failedAttempts = 0;
+let lockoutUntil = null;
+
 router.post('/login', (req, res) => {
   try {
     const { username, password } = req.body;
@@ -52,10 +55,26 @@ router.post('/login', (req, res) => {
       return res.status(400).json({ error: 'Username and password are required' });
     }
 
+    const now = Date.now();
+    if (lockoutUntil && now < lockoutUntil) {
+      const secondsLeft = Math.ceil((lockoutUntil - now) / 1000);
+      return res.status(429).json({ error: `Too many login attempts. Locked out. Try again in ${secondsLeft} seconds.` });
+    }
+
     const admin = db.prepare('SELECT * FROM admin WHERE username = ?').get(username.trim());
     if (!admin || !verifyPassword(password, admin.password_hash)) {
+      failedAttempts++;
+      if (failedAttempts >= 5) {
+        lockoutUntil = Date.now() + 60 * 1000; // 1-minute lockout
+        failedAttempts = 0;
+        return res.status(429).json({ error: 'Too many login attempts. Locked out for 1 minute.' });
+      }
       return res.status(401).json({ error: 'Invalid username or password' });
     }
+
+    // Success - reset counters
+    failedAttempts = 0;
+    lockoutUntil = null;
 
     const user = { id: admin.id, username: admin.username, role: 'admin' };
     const token = generateToken(user);

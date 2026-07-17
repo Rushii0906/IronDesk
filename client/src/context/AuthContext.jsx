@@ -63,6 +63,32 @@ export const AuthProvider = ({ children }) => {
     initAuth();
   }, [token]);
 
+  // Inactivity auto-logout hook (10 minutes)
+  useEffect(() => {
+    if (!token || !user) return;
+
+    const INACTIVITY_TIMEOUT = 10 * 60 * 1000; // 10 minutes
+    let timeoutId;
+
+    const resetTimer = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        logout();
+        alert('Session expired due to inactivity. Please log in again.');
+      }, INACTIVITY_TIMEOUT);
+    };
+
+    const events = ['mousemove', 'keydown', 'click', 'scroll'];
+    events.forEach(e => window.addEventListener(e, resetTimer));
+
+    resetTimer(); // start timer
+
+    return () => {
+      clearTimeout(timeoutId);
+      events.forEach(e => window.removeEventListener(e, resetTimer));
+    };
+  }, [token, user]);
+
   const login = async (username, password) => {
     const res = await fetch('/api/auth/login', {
       method: 'POST',

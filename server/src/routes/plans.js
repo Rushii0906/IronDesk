@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const authMiddleware = require('../middleware/auth');
+const { sanitizeHtml } = require('../utils/sanitize');
 
 // GET /api/plans - Get all plans
 router.get('/', (req, res) => {
@@ -17,13 +18,21 @@ router.get('/', (req, res) => {
 // POST /api/plans - Create a new plan
 router.post('/', authMiddleware, (req, res) => {
   try {
-    const { name, duration_months, price } = req.body;
+    let { name, duration_months, price } = req.body;
+    name = sanitizeHtml(name);
+
     if (!name || !duration_months || price === undefined) {
       return res.status(400).json({ error: 'Missing required fields: name, duration_months, price' });
     }
 
+    const duration = parseInt(duration_months, 10);
+    const rate = parseFloat(price);
+    if (isNaN(duration) || duration <= 0 || isNaN(rate) || rate < 0) {
+      return res.status(400).json({ error: 'Duration and Price must be positive values' });
+    }
+
     const info = db.prepare('INSERT INTO plans (name, duration_months, price) VALUES (?, ?, ?)')
-      .run(name, duration_months, price);
+      .run(name, duration, rate);
 
     const newPlan = db.prepare('SELECT * FROM plans WHERE id = ?').get(info.lastInsertRowid);
     res.status(201).json({ success: true, plan: newPlan });
@@ -37,13 +46,21 @@ router.post('/', authMiddleware, (req, res) => {
 router.put('/:id', authMiddleware, (req, res) => {
   try {
     const { id } = req.params;
-    const { name, duration_months, price } = req.body;
+    let { name, duration_months, price } = req.body;
+    name = sanitizeHtml(name);
+
     if (!name || !duration_months || price === undefined) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    const duration = parseInt(duration_months, 10);
+    const rate = parseFloat(price);
+    if (isNaN(duration) || duration <= 0 || isNaN(rate) || rate < 0) {
+      return res.status(400).json({ error: 'Duration and Price must be positive values' });
+    }
+
     const result = db.prepare('UPDATE plans SET name = ?, duration_months = ?, price = ? WHERE id = ?')
-      .run(name, duration_months, price, id);
+      .run(name, duration, rate, id);
 
     if (result.changes === 0) {
       return res.status(404).json({ error: 'Plan not found' });

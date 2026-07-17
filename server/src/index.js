@@ -6,8 +6,26 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Enable CORS
-app.use(cors());
+// Enable CORS with restricted origin policy
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'http://localhost:5000',
+      'http://localhost:5001'
+    ];
+    
+    if (allowedOrigins.indexOf(origin) !== -1 || origin.startsWith('capacitor://') || origin.startsWith('http://localhost')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+};
+app.use(cors(corsOptions));
 
 // Body parser middleware
 app.use(express.json());
@@ -60,6 +78,8 @@ app.use((err, req, res, next) => {
 });
 
 // Start listening
+const { initBackupScheduler } = require('./utils/backup');
 app.listen(PORT, () => {
   console.log(`IronDesk Server running on port ${PORT}`);
+  initBackupScheduler();
 });

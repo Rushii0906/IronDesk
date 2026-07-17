@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const authMiddleware = require('../middleware/auth');
+const { sanitizeHtml, sanitizePhone } = require('../utils/sanitize');
 
 // Utility to get local YYYY-MM-DD date string
 function getLocalDateString() {
@@ -124,7 +125,10 @@ router.get('/:id', authMiddleware, (req, res) => {
 // POST /api/members - Create a new member (calculates due_date automatically)
 router.post('/', authMiddleware, (req, res) => {
   try {
-    const { name, phone, plan_id, join_date } = req.body;
+    let { name, phone, plan_id, join_date } = req.body;
+    name = sanitizeHtml(name);
+    phone = sanitizePhone(phone);
+
     if (!name || !phone || !plan_id || !join_date) {
       return res.status(400).json({ error: 'Missing required fields: name, phone, plan_id, join_date' });
     }
@@ -155,7 +159,9 @@ router.post('/', authMiddleware, (req, res) => {
 router.put('/:id', authMiddleware, (req, res) => {
   try {
     const { id } = req.params;
-    const { name, phone, plan_id, due_date } = req.body;
+    let { name, phone, plan_id, due_date } = req.body;
+    name = sanitizeHtml(name);
+    phone = sanitizePhone(phone);
     
     if (!name || !phone || !plan_id || !due_date) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -197,10 +203,20 @@ router.delete('/:id', authMiddleware, (req, res) => {
 router.post('/:id/renew', authMiddleware, (req, res) => {
   try {
     const { id } = req.params;
-    const { plan_id, amount, method } = req.body;
+    let { plan_id, amount, method } = req.body;
 
     if (!plan_id || amount === undefined || !method) {
       return res.status(400).json({ error: 'Missing required fields: plan_id, amount, method' });
+    }
+
+    method = sanitizeHtml(method).toLowerCase();
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount < 0) {
+      return res.status(400).json({ error: 'Payment amount must be a positive number' });
+    }
+
+    if (!['cash', 'card', 'upi'].includes(method)) {
+      return res.status(400).json({ error: 'Invalid payment method. Allowed: cash, card, upi' });
     }
 
     const plan = db.prepare('SELECT * FROM plans WHERE id = ?').get(plan_id);
