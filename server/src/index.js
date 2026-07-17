@@ -82,8 +82,8 @@ app.get('/downloads/:filename', authMiddleware, (req, res) => {
   }
 });
 
-// Serve frontend static assets in production
-if (process.env.NODE_ENV === 'production') {
+// Serve frontend static assets in production (local only — Vercel serves static files via CDN)
+if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
   const clientBuildPath = path.join(__dirname, '..', '..', 'client', 'dist');
   app.use(express.static(clientBuildPath));
   
