@@ -4,7 +4,7 @@ const path = require('path');
 const dbPath = process.env.DATABASE_PATH || path.join(__dirname, '..', 'irondesk_db.json');
 
 let data = {
-  staff: [],
+  admin: [],
   plans: [],
   members: [],
   payments: []
@@ -16,7 +16,7 @@ function load() {
     try {
       data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
       // Ensure all arrays are initialized
-      data.staff = data.staff || [];
+      data.admin = data.admin || [];
       data.plans = data.plans || [];
       data.members = data.members || [];
       data.payments = data.payments || [];
@@ -239,7 +239,7 @@ const db = {
   prepare: (sql) => new Statement(sql),
   pragma: (sql) => console.log(`PRAGMA executed: ${sql}`),
   _clear: () => {
-    data = { staff: [], plans: [], members: [], payments: [] };
+    data = { admin: [], plans: [], members: [], payments: [] };
     save();
   }
 };

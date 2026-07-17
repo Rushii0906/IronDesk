@@ -24,9 +24,9 @@ export default function Settings() {
   const [planActionLoading, setPlanActionLoading] = useState(false);
 
   // Security Form
-  const [oldPin, setOldPin] = useState('');
-  const [newPin, setNewPin] = useState('');
-  const [confirmPin, setConfirmPin] = useState('');
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [securitySuccess, setSecuritySuccess] = useState('');
   const [securityError, setSecurityError] = useState('');
   const [securityLoading, setSecurityLoading] = useState(false);
@@ -168,45 +168,45 @@ export default function Settings() {
     }
   };
 
-  // Submit change PIN
-  const handlePinSubmit = async (e) => {
+  // Submit change Password
+  const handlePasswordSubmit = async (e) => {
     e.preventDefault();
     setSecurityError('');
     setSecuritySuccess('');
 
-    if (!oldPin || !newPin || !confirmPin) {
-      setSecurityError('All PIN fields are required');
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      setSecurityError('All password fields are required');
       return;
     }
 
-    if (newPin.length < 4 || newPin.length > 6 || !/^\d+$/.test(newPin)) {
-      setSecurityError('New PIN must be 4 to 6 digits');
+    if (newPassword.length < 6) {
+      setSecurityError('New password must be at least 6 characters');
       return;
     }
 
-    if (newPin !== confirmPin) {
-      setSecurityError('New PINs do not match');
+    if (newPassword !== confirmPassword) {
+      setSecurityError('New passwords do not match');
       return;
     }
 
     setSecurityLoading(true);
     try {
-      const res = await fetch('/api/auth/change-pin', {
+      const res = await fetch('/api/auth/change-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ oldPin, newPin })
+        body: JSON.stringify({ oldPassword, newPassword })
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'PIN update failed');
+      if (!res.ok) throw new Error(data.error || 'Password update failed');
 
-      setSecuritySuccess('PIN updated successfully');
-      setOldPin('');
-      setNewPin('');
-      setConfirmPin('');
+      setSecuritySuccess('Password updated successfully');
+      setOldPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
     } catch (err) {
       setSecurityError(err.message);
     } finally {
@@ -313,7 +313,7 @@ export default function Settings() {
               </div>
               <div>
                 <h3 className="font-display font-bold text-white text-sm">SECURITY CONTROL</h3>
-                <p className="text-[10px] text-gray-500">Update front desk shared access PIN.</p>
+                <p className="text-[10px] text-gray-500">Update admin security credentials.</p>
               </div>
             </div>
 
@@ -330,41 +330,38 @@ export default function Settings() {
               </div>
             )}
 
-            <form onSubmit={handlePinSubmit} className="space-y-3">
+            <form onSubmit={handlePasswordSubmit} className="space-y-3">
               <div>
-                <label className="block text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-1.5">Current PIN</label>
+                <label className="block text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-1.5">Current Password</label>
                 <input
                   type="password"
                   required
-                  maxLength={6}
-                  value={oldPin}
-                  onChange={(e) => setOldPin(e.target.value.replace(/\D/g, ''))}
-                  placeholder="Old PIN"
-                  className="w-full h-11 bg-[#24262E] border border-gym-border rounded-xl px-4 text-sm text-white focus:outline-none focus:border-gym-accent font-mono"
+                  value={oldPassword}
+                  onChange={(e) => setOldPassword(e.target.value)}
+                  placeholder="Old password"
+                  className="w-full h-11 bg-[#24262E] border border-gym-border rounded-xl px-4 text-sm text-white focus:outline-none focus:border-gym-accent"
                 />
               </div>
               <div>
-                <label className="block text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-1.5">New PIN (4-6 digits)</label>
+                <label className="block text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-1.5">New Password</label>
                 <input
                   type="password"
                   required
-                  maxLength={6}
-                  value={newPin}
-                  onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
-                  placeholder="New PIN"
-                  className="w-full h-11 bg-[#24262E] border border-gym-border rounded-xl px-4 text-sm text-white focus:outline-none focus:border-gym-accent font-mono"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="New password"
+                  className="w-full h-11 bg-[#24262E] border border-gym-border rounded-xl px-4 text-sm text-white focus:outline-none focus:border-gym-accent"
                 />
               </div>
               <div>
-                <label className="block text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-1.5">Confirm New PIN</label>
+                <label className="block text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-1.5">Confirm New Password</label>
                 <input
                   type="password"
                   required
-                  maxLength={6}
-                  value={confirmPin}
-                  onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))}
-                  placeholder="Repeat PIN"
-                  className="w-full h-11 bg-[#24262E] border border-gym-border rounded-xl px-4 text-sm text-white focus:outline-none focus:border-gym-accent font-mono"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Repeat password"
+                  className="w-full h-11 bg-[#24262E] border border-gym-border rounded-xl px-4 text-sm text-white focus:outline-none focus:border-gym-accent"
                 />
               </div>
               <button
@@ -372,7 +369,7 @@ export default function Settings() {
                 disabled={securityLoading}
                 className="w-full h-11 bg-gym-accent hover:bg-gym-accentHover text-black font-semibold rounded-xl transition-all duration-150 flex items-center justify-center mt-4 disabled:opacity-50 text-xs"
               >
-                {securityLoading ? <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin"></div> : 'Update PIN'}
+                {securityLoading ? <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin"></div> : 'Update Password'}
               </button>
             </form>
           </div>
@@ -381,7 +378,7 @@ export default function Settings() {
           <div className="bg-gym-panel border border-gym-border rounded-2xl p-5 shadow-xl">
             <h3 className="font-display font-bold text-white text-sm mb-1">OPERATOR CONTROL</h3>
             <p className="text-xs text-gray-500 leading-relaxed mb-4">
-              Logout clears the local token storage and secures the session. Next login requires access PIN.
+              Logout clears the local token storage and secures the session. Next login requires credentials.
             </p>
             <button
               onClick={logout}

@@ -530,7 +530,7 @@ export default function LandingPage() {
               to="/app" 
               className="text-gray-600 hover:text-gym-accent hover:underline font-semibold"
             >
-              Staff Login
+              Admin Login
             </Link>
           </div>
         </div>

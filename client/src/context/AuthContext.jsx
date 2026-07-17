@@ -63,11 +63,11 @@ export const AuthProvider = ({ children }) => {
     initAuth();
   }, [token]);
 
-  const login = async (pin) => {
+  const login = async (username, password) => {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pin })
+      body: JSON.stringify({ username, password })
     });
 
     const data = await res.json();
@@ -82,11 +82,11 @@ export const AuthProvider = ({ children }) => {
     return data.user;
   };
 
-  const setup = async (name, pin) => {
+  const setup = async (username, password) => {
     const res = await fetch('/api/auth/setup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, pin })
+      body: JSON.stringify({ username, password })
     });
 
     const data = await res.json();

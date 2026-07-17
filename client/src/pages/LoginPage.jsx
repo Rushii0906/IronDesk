@@ -1,44 +1,27 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { KeyRound, ShieldAlert } from 'lucide-react';
+import { KeyRound, ShieldAlert, User, Lock } from 'lucide-react';
 
 export default function LoginPage() {
-  const [pin, setPin] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
 
-  const handleKeyPress = (num) => {
-    if (pin.length < 6) {
-      setPin((prev) => prev + num);
-      setError('');
-    }
-  };
-
-  const handleBackspace = () => {
-    setPin((prev) => prev.slice(0, -1));
-    setError('');
-  };
-
-  const handleClear = () => {
-    setPin('');
-    setError('');
-  };
-
   const handleSubmit = async (e) => {
-    if (e) e.preventDefault();
-    if (!pin) {
-      setError('Please enter your access PIN');
+    e.preventDefault();
+    if (!username.trim() || !password) {
+      setError('Please fill in both username and password');
       return;
     }
 
     setLoading(true);
     setError('');
     try {
-      await login(pin);
+      await login(username.trim(), password);
     } catch (err) {
-      setError(err.message || 'Invalid access PIN');
-      setPin('');
+      setError(err.message || 'Invalid username or password');
     } finally {
       setLoading(false);
     }
@@ -61,98 +44,65 @@ export default function LoginPage() {
           <p className="text-gray-400 text-sm mt-1 font-medium">Gym Operations Console</p>
         </div>
 
-        {/* PIN Display */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="flex flex-col items-center space-y-2">
-            <label className="text-xs uppercase tracking-widest text-gray-400 font-semibold">
-              Enter Access PIN
+        {error && (
+          <div className="bg-red-500 bg-opacity-10 border border-red-500 border-opacity-20 text-gym-expiredText rounded-xl p-3 flex items-center space-x-2 text-sm justify-center mb-5">
+            <ShieldAlert className="w-4 h-4 flex-shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs uppercase tracking-widest text-gray-400 font-semibold mb-2">
+              Admin Username
             </label>
-            <div className="flex justify-center items-center space-x-3 mt-1 h-12">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div
-                  key={i}
-                  className={`w-3.5 h-3.5 rounded-full border transition-all duration-150 ${
-                    i < pin.length
-                      ? 'bg-gym-accent border-gym-accent scale-110 shadow-[0_0_8px_#F2A93B]'
-                      : 'border-gray-600 bg-transparent'
-                  }`}
-                />
-              ))}
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <User className="h-5 w-5 text-gray-500" />
+              </span>
+              <input
+                type="text"
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter username"
+                className="w-full h-12 bg-[#24262E] border border-[#33353E] rounded-xl pl-10 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-gym-accent transition-colors duration-150"
+              />
             </div>
-            
-            {/* Real Hidden/Accessible input field for keyboard users */}
-            <input
-              type="password"
-              value={pin}
-              onChange={(e) => {
-                const val = e.target.value.replace(/\D/g, '').slice(0, 6);
-                setPin(val);
-                setError('');
-              }}
-              className="sr-only"
-              autoFocus
-              maxLength={6}
-            />
           </div>
 
-          {error && (
-            <div className="bg-red-500 bg-opacity-10 border border-red-500 border-opacity-20 text-gym-expiredText rounded-xl p-3 flex items-center space-x-2 text-sm justify-center">
-              <ShieldAlert className="w-4 h-4 flex-shrink-0" />
-              <span>{error}</span>
+          <div>
+            <label className="block text-xs uppercase tracking-widest text-gray-400 font-semibold mb-2">
+              Admin Password
+            </label>
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Lock className="h-5 w-5 text-gray-500" />
+              </span>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter password"
+                className="w-full h-12 bg-[#24262E] border border-[#33353E] rounded-xl pl-10 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-gym-accent transition-colors duration-150"
+              />
             </div>
-          )}
-
-          {/* Touch Pad Keypad */}
-          <div className="grid grid-cols-3 gap-3 max-w-[280px] mx-auto">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-              <button
-                key={num}
-                type="button"
-                onClick={() => handleKeyPress(num.toString())}
-                className="h-14 rounded-xl bg-[#24262E] hover:bg-[#2C2E37] border border-[#33353E] text-white text-xl font-display font-semibold transition-colors duration-150 active:scale-95 flex items-center justify-center"
-              >
-                {num}
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={handleClear}
-              className="h-14 rounded-xl bg-[#24262E] hover:bg-[#2C2E37] border border-[#33353E] text-gray-400 text-xs font-semibold uppercase transition-colors duration-150 active:scale-95 flex items-center justify-center"
-            >
-              Clear
-            </button>
-            <button
-              type="button"
-              onClick={() => handleKeyPress('0')}
-              className="h-14 rounded-xl bg-[#24262E] hover:bg-[#2C2E37] border border-[#33353E] text-white text-xl font-display font-semibold transition-colors duration-150 active:scale-95 flex items-center justify-center"
-            >
-              0
-            </button>
-            <button
-              type="button"
-              onClick={handleBackspace}
-              className="h-14 rounded-xl bg-[#24262E] hover:bg-[#2C2E37] border border-[#33353E] text-gray-400 text-xs font-semibold uppercase transition-colors duration-150 active:scale-95 flex items-center justify-center"
-            >
-              Delete
-            </button>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-12 bg-gym-accent hover:bg-gym-accentHover disabled:opacity-50 text-black font-semibold rounded-xl transition-all duration-150 shadow-[0_4px_12px_rgba(242,169,59,0.25)] flex items-center justify-center"
+            className="w-full h-12 mt-6 bg-gym-accent hover:bg-gym-accentHover disabled:opacity-50 text-black font-semibold rounded-xl transition-all duration-150 shadow-[0_4px_12px_rgba(242,169,59,0.25)] flex items-center justify-center text-xs uppercase tracking-wider font-bold"
           >
             {loading ? (
               <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
             ) : (
-              'Log In'
+              'Access Console'
             )}
           </button>
         </form>
       </div>
-      <p className="text-gray-500 text-xs mt-6">
-        Tip: You can also use your physical keyboard to enter numbers.
-      </p>
     </div>
   );
 }

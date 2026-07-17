@@ -5,18 +5,18 @@ const JWT_SECRET = process.env.JWT_SECRET || 'irondesk-super-secret-key-2026';
 const ITERATIONS = 10000;
 const KEY_LEN = 64;
 const DIGEST = 'sha512';
-const SALT = process.env.PIN_SALT || 'irondesk-salt-key';
+const SALT = process.env.PASSWORD_SALT || process.env.PIN_SALT || 'irondesk-salt-key';
 
-function hashPin(pin) {
-  if (!pin) throw new Error('PIN is required for hashing');
-  const hash = crypto.pbkdf2Sync(pin, SALT, ITERATIONS, KEY_LEN, DIGEST);
+function hashPassword(password) {
+  if (!password) throw new Error('Password is required for hashing');
+  const hash = crypto.pbkdf2Sync(password, SALT, ITERATIONS, KEY_LEN, DIGEST);
   return hash.toString('hex');
 }
 
-function verifyPin(pin, hashedPin) {
+function verifyPassword(password, hashedPassword) {
   try {
-    const hash = hashPin(pin);
-    return hash === hashedPin;
+    const hash = hashPassword(password);
+    return hash === hashedPassword;
   } catch (err) {
     return false;
   }
@@ -24,7 +24,7 @@ function verifyPin(pin, hashedPin) {
 
 function generateToken(user) {
   return jwt.sign(
-    { id: user.id, name: user.name, role: user.role },
+    { id: user.id, username: user.username, role: 'admin' },
     JWT_SECRET,
     { expiresIn: '30d' } // 30-day session for front desk ease-of-use
   );
@@ -39,8 +39,8 @@ function verifyToken(token) {
 }
 
 module.exports = {
-  hashPin,
-  verifyPin,
+  hashPassword,
+  verifyPassword,
   generateToken,
   verifyToken
 };

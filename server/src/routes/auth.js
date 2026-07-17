@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
-const { hashPin, verifyPin, generateToken } = require('../utils/auth');
+const { hashPassword, verifyPassword, generateToken } = require('../utils/auth');
 const authMiddleware = require('../middleware/auth');
 
 // GET /api/auth/check-setup - Check if setup is needed
 router.get('/check-setup', (req, res) => {
   try {
-    const row = db.prepare('SELECT COUNT(*) as count FROM staff').get();
+    const row = db.prepare('SELECT COUNT(*) as count FROM admin').get();
     const count = row ? row.count : 0;
     res.json({ setupRequired: count === 0 });
   } catch (error) {
@@ -16,25 +16,25 @@ router.get('/check-setup', (req, res) => {
   }
 });
 
-// POST /api/auth/setup - First-run setup
+// POST /api/auth/setup - First-run setup (creates single admin ever)
 router.post('/setup', (req, res) => {
   try {
-    const { name, pin } = req.body;
-    if (!name || !pin) {
-      return res.status(400).json({ error: 'Name and PIN are required' });
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
     }
 
-    // Check if staff already exists
-    const checkRow = db.prepare('SELECT COUNT(*) as count FROM staff').get();
+    // Enforce that only one admin record can ever exist
+    const checkRow = db.prepare('SELECT COUNT(*) as count FROM admin').get();
     if (checkRow && checkRow.count > 0) {
-      return res.status(400).json({ error: 'Setup has already been completed' });
+      return res.status(400).json({ error: 'Setup has already been completed. Only one admin account is allowed.' });
     }
 
-    const hashedPin = hashPin(pin);
-    const info = db.prepare("INSERT INTO staff (name, pin, role) VALUES (?, ?, 'admin')")
-      .run(name, hashedPin);
+    const hashedPassword = hashPassword(password);
+    const info = db.prepare('INSERT INTO admin (username, password_hash) VALUES (?, ?)')
+      .run(username.trim(), hashedPassword);
 
-    const user = { id: info.lastInsertRowid, name, role: 'admin' };
+    const user = { id: info.lastInsertRowid, username: username.trim(), role: 'admin' };
     const token = generateToken(user);
 
     res.status(201).json({ success: true, token, user });
@@ -44,22 +44,20 @@ router.post('/setup', (req, res) => {
   }
 });
 
-// POST /api/auth/login - Staff login
+// POST /api/auth/login - Admin login
 router.post('/login', (req, res) => {
   try {
-    const { pin } = req.body;
-    if (!pin) {
-      return res.status(400).json({ error: 'PIN is required' });
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
     }
 
-    const hashedPin = hashPin(pin);
-    const staff = db.prepare('SELECT * FROM staff WHERE pin = ?').get(hashedPin);
-
-    if (!staff) {
-      return res.status(401).json({ error: 'Invalid PIN' });
+    const admin = db.prepare('SELECT * FROM admin WHERE username = ?').get(username.trim());
+    if (!admin || !verifyPassword(password, admin.password_hash)) {
+      return res.status(401).json({ error: 'Invalid username or password' });
     }
 
-    const user = { id: staff.id, name: staff.name, role: staff.role };
+    const user = { id: admin.id, username: admin.username, role: 'admin' };
     const token = generateToken(user);
 
     res.json({ success: true, token, user });
@@ -74,27 +72,27 @@ router.get('/me', authMiddleware, (req, res) => {
   res.json({ success: true, user: req.user });
 });
 
-// POST /api/auth/change-pin - Update PIN
-router.post('/change-pin', authMiddleware, (req, res) => {
+// POST /api/auth/change-password - Update password
+router.post('/change-password', authMiddleware, (req, res) => {
   try {
-    const { oldPin, newPin } = req.body;
-    if (!oldPin || !newPin) {
-      return res.status(400).json({ error: 'Old PIN and New PIN are required' });
+    const { oldPassword, newPassword } = req.body;
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json({ error: 'Old password and new password are required' });
     }
 
-    // Verify current user's record
-    const staff = db.prepare('SELECT * FROM staff WHERE id = ?').get(req.user.id);
-    if (!staff || !verifyPin(oldPin, staff.pin)) {
-      return res.status(401).json({ error: 'Incorrect old PIN' });
+    // Verify current admin record
+    const admin = db.prepare('SELECT * FROM admin WHERE id = ?').get(req.user.id);
+    if (!admin || !verifyPassword(oldPassword, admin.password_hash)) {
+      return res.status(401).json({ error: 'Incorrect old password' });
     }
 
-    const newHashedPin = hashPin(newPin);
-    db.prepare('UPDATE staff SET pin = ? WHERE id = ?').run(newHashedPin, req.user.id);
+    const newHashed = hashPassword(newPassword);
+    db.prepare('UPDATE admin SET password_hash = ? WHERE id = ?').run(newHashed, req.user.id);
 
-    res.json({ success: true, message: 'PIN updated successfully' });
+    res.json({ success: true, message: 'Password updated successfully' });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Failed to update PIN' });
+    res.status(500).json({ error: 'Failed to update password' });
   }
 });
 

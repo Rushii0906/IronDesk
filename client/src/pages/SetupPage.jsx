@@ -3,9 +3,9 @@ import { useAuth } from '../context/AuthContext';
 import { ShieldCheck, User, Key, AlertTriangle } from 'lucide-react';
 
 export default function SetupPage() {
-  const [name, setName] = useState('');
-  const [pin, setPin] = useState('');
-  const [confirmPin, setConfirmPin] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { setup } = useAuth();
@@ -14,26 +14,26 @@ export default function SetupPage() {
     e.preventDefault();
     setError('');
 
-    if (!name.trim()) {
-      setError('Admin name is required');
+    if (!username.trim()) {
+      setError('Admin username is required');
       return;
     }
-    if (!pin) {
-      setError('Access PIN is required');
+    if (!password) {
+      setError('Admin password is required');
       return;
     }
-    if (pin.length < 4 || pin.length > 6 || !/^\d+$/.test(pin)) {
-      setError('PIN must be 4 to 6 digits');
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
       return;
     }
-    if (pin !== confirmPin) {
-      setError('PINs do not match');
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
       return;
     }
 
     setLoading(true);
     try {
-      await setup(name.trim(), pin);
+      await setup(username.trim(), password);
     } catch (err) {
       setError(err.message || 'Setup initialization failed');
     } finally {
@@ -56,7 +56,7 @@ export default function SetupPage() {
             IRON<span className="text-gym-accent">DESK SETUP</span>
           </h1>
           <p className="text-gray-400 text-sm mt-1 px-4 leading-relaxed">
-            Welcome! Create the primary administrator and set the shared front desk access PIN to get started.
+            Welcome! Create the single administrator account for the gym management system to get started.
           </p>
         </div>
 
@@ -70,7 +70,7 @@ export default function SetupPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs uppercase tracking-widest text-gray-400 font-semibold mb-2">
-              Owner / Admin Name
+              Admin Username
             </label>
             <div className="relative">
               <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -78,9 +78,10 @@ export default function SetupPage() {
               </span>
               <input
                 type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. John Doe"
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="e.g. admin"
                 className="w-full h-12 bg-[#24262E] border border-[#33353E] rounded-xl pl-10 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-gym-accent transition-colors duration-150"
               />
             </div>
@@ -88,7 +89,7 @@ export default function SetupPage() {
 
           <div>
             <label className="block text-xs uppercase tracking-widest text-gray-400 font-semibold mb-2">
-              Access PIN (4-6 digits)
+              Admin Password
             </label>
             <div className="relative">
               <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -96,11 +97,10 @@ export default function SetupPage() {
               </span>
               <input
                 type="password"
-                pattern="\d*"
-                maxLength={6}
-                value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-                placeholder="e.g. 1234"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Minimum 6 characters"
                 className="w-full h-12 bg-[#24262E] border border-[#33353E] rounded-xl pl-10 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-gym-accent transition-colors duration-150"
               />
             </div>
@@ -108,7 +108,7 @@ export default function SetupPage() {
 
           <div>
             <label className="block text-xs uppercase tracking-widest text-gray-400 font-semibold mb-2">
-              Confirm Access PIN
+              Confirm Password
             </label>
             <div className="relative">
               <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -116,11 +116,10 @@ export default function SetupPage() {
               </span>
               <input
                 type="password"
-                pattern="\d*"
-                maxLength={6}
-                value={confirmPin}
-                onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))}
-                placeholder="Repeat PIN"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Repeat password"
                 className="w-full h-12 bg-[#24262E] border border-[#33353E] rounded-xl pl-10 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-gym-accent transition-colors duration-150"
               />
             </div>
