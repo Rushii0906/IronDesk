@@ -14,6 +14,7 @@
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "build:client": "npm run build --workspace=client",
     "build": "npm run build:client",
+    "vercel-build": "npm run build:client",
     "start": "npm run start --workspace=server"
   },
   "devDependencies": {
