@@ -57,6 +57,9 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// Serve native app installers statically
+app.use('/downloads', express.static(path.join(__dirname, '..', '..', 'downloads')));
+
 // Serve frontend static assets in production
 if (process.env.NODE_ENV === 'production') {
   const clientBuildPath = path.join(__dirname, '..', '..', 'client', 'dist');

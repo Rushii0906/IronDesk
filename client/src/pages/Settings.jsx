@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Edit2, Trash2, Key, LogOut, CheckCircle2, ShieldAlert, X, AlertTriangle, Sparkles } from 'lucide-react';
+import { Plus, Edit2, Trash2, Key, LogOut, CheckCircle2, ShieldAlert, X, AlertTriangle, Sparkles, Download } from 'lucide-react';
 
 export default function Settings() {
   const { token, logout } = useAuth();
@@ -387,6 +387,32 @@ export default function Settings() {
               <LogOut className="w-4 h-4" />
               <span>Log Out Operator</span>
             </button>
+          </div>
+
+          {/* Download Native App */}
+          <div className="bg-gym-panel border border-gym-border rounded-2xl p-5 shadow-xl">
+            <h3 className="font-display font-bold text-white text-sm mb-1">DOWNLOAD NATIVE APP</h3>
+            <p className="text-xs text-gray-500 leading-relaxed mb-4">
+              Access the operational console directly from your desktop or phone by installing the native wrapper app.
+            </p>
+            <div className="space-y-2">
+              <a
+                href="/downloads/irondesk-desktop-setup.exe"
+                download
+                className="w-full h-11 bg-[#24262E] hover:bg-[#2C2E37] border border-gym-border text-white font-semibold rounded-xl transition-colors duration-150 flex items-center justify-center space-x-2 text-xs"
+              >
+                <Download className="w-4 h-4 text-gym-accent" />
+                <span>Download Windows App (.exe)</span>
+              </a>
+              <a
+                href="/downloads/irondesk-android.apk"
+                download
+                className="w-full h-11 bg-[#24262E] hover:bg-[#2C2E37] border border-gym-border text-white font-semibold rounded-xl transition-colors duration-150 flex items-center justify-center space-x-2 text-xs"
+              >
+                <Download className="w-4 h-4 text-gym-accent" />
+                <span>Download Android App (.apk)</span>
+              </a>
+            </div>
           </div>
         </div>
       </div>

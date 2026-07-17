@@ -28,6 +28,7 @@ build/
 server/irondesk_db.json
 backups/
 server/backups/
+downloads/
 
 # IDE / Editors
 .vscode/
