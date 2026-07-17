@@ -1,6 +1,7 @@
 const { Pool } = require('pg');
-const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '..', '..', '.env') });
+
+// Load .env locally — on Vercel, env vars are injected directly and dotenv is a no-op
+require('dotenv').config();
 
 const db = new Pool({
   connectionString: process.env.DATABASE_URL,

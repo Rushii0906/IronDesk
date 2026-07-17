@@ -7,18 +7,19 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Enable CORS with restricted origin policy
+// Enable CORS — allows localhost dev, Capacitor native apps, and Vercel deployments
 const corsOptions = {
   origin: (origin, callback) => {
+    // Allow server-to-server calls (no origin) and all non-browser clients
     if (!origin) return callback(null, true);
-    
-    const allowedOrigins = [
-      'http://localhost:5173',
-      'http://localhost:5000',
-      'http://localhost:5001'
-    ];
-    
-    if (allowedOrigins.indexOf(origin) !== -1 || origin.startsWith('capacitor://') || origin.startsWith('http://localhost')) {
+
+    const isLocalhost = origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1');
+    const isCapacitor = origin.startsWith('capacitor://');
+    const isVercel = origin.endsWith('.vercel.app');
+    // Allow custom production domain set via FRONTEND_URL env var
+    const isFrontendUrl = process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL;
+
+    if (isLocalhost || isCapacitor || isVercel || isFrontendUrl) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
