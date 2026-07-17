@@ -31,6 +31,28 @@ export default function Settings() {
   const [securityError, setSecurityError] = useState('');
   const [securityLoading, setSecurityLoading] = useState(false);
 
+  const handleDownload = async (filename) => {
+    try {
+      setSecurityError('');
+      setSecuritySuccess('');
+      const res = await fetch(`/downloads/${filename}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Download failed. File may not exist yet or you lack permissions.');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setSecurityError(err.message);
+    }
+  };
+
   const fetchPlans = async () => {
     try {
       const res = await fetch('/api/plans', {
@@ -396,22 +418,20 @@ export default function Settings() {
               Access the operational console directly from your desktop or phone by installing the native wrapper app.
             </p>
             <div className="space-y-2">
-              <a
-                href="/downloads/irondesk-desktop-setup.exe"
-                download
+              <button
+                onClick={() => handleDownload('irondesk-desktop-setup.exe')}
                 className="w-full h-11 bg-[#24262E] hover:bg-[#2C2E37] border border-gym-border text-white font-semibold rounded-xl transition-colors duration-150 flex items-center justify-center space-x-2 text-xs"
               >
                 <Download className="w-4 h-4 text-gym-accent" />
                 <span>Download Windows App (.exe)</span>
-              </a>
-              <a
-                href="/downloads/irondesk-android.apk"
-                download
+              </button>
+              <button
+                onClick={() => handleDownload('irondesk-android.apk')}
                 className="w-full h-11 bg-[#24262E] hover:bg-[#2C2E37] border border-gym-border text-white font-semibold rounded-xl transition-colors duration-150 flex items-center justify-center space-x-2 text-xs"
               >
                 <Download className="w-4 h-4 text-gym-accent" />
                 <span>Download Android App (.apk)</span>
-              </a>
+              </button>
             </div>
           </div>
         </div>

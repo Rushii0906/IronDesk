@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -57,8 +58,28 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Serve native app installers statically
-app.use('/downloads', express.static(path.join(__dirname, '..', '..', 'downloads')));
+// Serve native app installers securely - only allowed for logged-in admins
+const authMiddleware = require('./middleware/auth');
+app.get('/downloads/:filename', authMiddleware, (req, res) => {
+  try {
+    const { filename } = req.params;
+    
+    // Prevent directory traversal attacks
+    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+      return res.status(400).json({ error: 'Invalid filename request' });
+    }
+
+    const filePath = path.join(__dirname, '..', '..', 'downloads', filename);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    res.download(filePath);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to stream download' });
+  }
+});
 
 // Serve frontend static assets in production
 if (process.env.NODE_ENV === 'production') {
