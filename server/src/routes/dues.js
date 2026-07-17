@@ -26,11 +26,10 @@ router.get('/', authMiddleware, async (req, res) => {
   try {
     const todayStr = getLocalDateString();
     
-    const { data: members, error } = await db.from('members').select('*');
-    if (error) throw error;
+    const { rows: members } = await db.query('SELECT * FROM members');
     
     const results = [];
-    (members || []).forEach(member => {
+    members.forEach(member => {
       const daysLeft = getDaysDifference(member.due_date, todayStr);
       // Expired: due date is in the past
       if (daysLeft < 0) {
@@ -45,7 +44,7 @@ router.get('/', authMiddleware, async (req, res) => {
     });
 
     // Sort by days_overdue descending (most overdue first)
-    results.sort((a, b) => b.days_overdue - a.days_overdue);
+    results.sort((a, b) => a.days_overdue - b.days_overdue);
 
     res.json(results);
   } catch (error) {

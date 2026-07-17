@@ -7,9 +7,8 @@ const { sanitizeHtml } = require('../utils/sanitize');
 // GET /api/plans - Get all plans
 router.get('/', async (req, res) => {
   try {
-    const { data, error } = await db.from('plans').select('*').order('name');
-    if (error) throw error;
-    res.json(data || []);
+    const { rows } = await db.query('SELECT * FROM plans ORDER BY name');
+    res.json(rows);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to fetch plans' });
@@ -32,12 +31,12 @@ router.post('/', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Duration and Price must be positive values' });
     }
 
-    const { data, error } = await db.from('plans')
-      .insert([{ name, duration_months: duration, price: rate }])
-      .select();
+    const { rows } = await db.query(
+      'INSERT INTO plans (name, duration_months, price) VALUES ($1, $2, $3) RETURNING *',
+      [name, duration, rate]
+    );
 
-    if (error) throw error;
-    res.status(201).json({ success: true, plan: data[0] });
+    res.status(201).json({ success: true, plan: rows[0] });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to create plan' });
@@ -61,17 +60,16 @@ router.put('/:id', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Duration and Price must be positive values' });
     }
 
-    const { data, error } = await db.from('plans')
-      .update({ name, duration_months: duration, price: rate })
-      .eq('id', id)
-      .select();
+    const { rows } = await db.query(
+      'UPDATE plans SET name = $1, duration_months = $2, price = $3 WHERE id = $4 RETURNING *',
+      [name, duration, rate, id]
+    );
 
-    if (error) throw error;
-    if (!data || data.length === 0) {
+    if (rows.length === 0) {
       return res.status(404).json({ error: 'Plan not found' });
     }
 
-    res.json({ success: true, plan: data[0] });
+    res.json({ success: true, plan: rows[0] });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to update plan' });
@@ -82,13 +80,9 @@ router.put('/:id', authMiddleware, async (req, res) => {
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { data, error } = await db.from('plans')
-      .delete()
-      .eq('id', id)
-      .select();
+    const { rows } = await db.query('DELETE FROM plans WHERE id = $1 RETURNING *', [id]);
 
-    if (error) throw error;
-    if (!data || data.length === 0) {
+    if (rows.length === 0) {
       return res.status(404).json({ error: 'Plan not found' });
     }
 

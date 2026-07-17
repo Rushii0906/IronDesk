@@ -30,14 +30,12 @@ router.get('/', authMiddleware, async (req, res) => {
     const currentMonthPrefix = todayStr.substring(0, 7); // e.g. "2026-07"
 
     // Fetch all members
-    const { data: members, error: mErr } = await db.from('members').select('*');
-    if (mErr) throw mErr;
+    const { rows: members } = await db.query('SELECT * FROM members');
     
     // Fetch all payments
-    const { data: payments, error: pErr } = await db.from('payments').select('*');
-    if (pErr) throw pErr;
+    const { rows: payments } = await db.query('SELECT * FROM payments');
 
-    const currentMonthPayments = (payments || []).filter(p => p.date && p.date.startsWith(currentMonthPrefix));
+    const currentMonthPayments = payments.filter(p => p.date && p.date.startsWith(currentMonthPrefix));
     const monthlyRevenue = currentMonthPayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
     let activeCount = 0;
@@ -45,7 +43,7 @@ router.get('/', authMiddleware, async (req, res) => {
     let expiredCount = 0;
     const attentionList = [];
 
-    (members || []).forEach(member => {
+    members.forEach(member => {
       const daysLeft = getDaysDifference(member.due_date, todayStr);
       let status = 'active';
 
@@ -79,7 +77,7 @@ router.get('/', authMiddleware, async (req, res) => {
       activeCount,
       expiringCount,
       expiredCount,
-      totalCount: (members || []).length,
+      totalCount: members.length,
       monthlyRevenue,
       attentionList
     });

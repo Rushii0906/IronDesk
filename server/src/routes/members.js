@@ -30,17 +30,14 @@ router.get('/', authMiddleware, async (req, res) => {
     const { search, status } = req.query;
     const todayStr = getLocalDateString();
 
-    const { data: members, error: mErr } = await db.from('members').select('*');
-    if (mErr) throw mErr;
-
-    const { data: plans, error: pErr } = await db.from('plans').select('*');
-    if (pErr) throw pErr;
+    const { rows: members } = await db.query('SELECT * FROM members');
+    const { rows: plans } = await db.query('SELECT * FROM plans');
 
     // Map plans to an object for fast lookup
     const plansMap = {};
     plans.forEach(p => { plansMap[p.id] = p; });
 
-    let results = (members || []).map(m => {
+    let results = members.map(m => {
       const plan = plansMap[m.plan_id] || null;
       const daysLeft = getDaysDifference(m.due_date, todayStr);
       let computedStatus = 'active';
@@ -89,21 +86,20 @@ router.get('/', authMiddleware, async (req, res) => {
 router.get('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { data: member, error: mErr } = await db.from('members').select('*').eq('id', id).maybeSingle();
-    if (mErr) throw mErr;
+    const { rows: members } = await db.query('SELECT * FROM members WHERE id = $1', [id]);
+    const member = members[0];
 
     if (!member) {
       return res.status(404).json({ error: 'Member not found' });
     }
 
-    const { data: plan } = member.plan_id 
-      ? await db.from('plans').select('*').eq('id', member.plan_id).maybeSingle()
-      : { data: null };
+    let plan = null;
+    if (member.plan_id) {
+      const { rows: plans } = await db.query('SELECT * FROM plans WHERE id = $1', [member.plan_id]);
+      plan = plans[0] || null;
+    }
 
-    const { data: payments } = await db.from('payments')
-      .select('*')
-      .eq('member_id', id)
-      .order('date', { ascending: false });
+    const { rows: payments } = await db.query('SELECT * FROM payments WHERE member_id = $1 ORDER BY date DESC', [id]);
 
     // Compute current status
     const todayStr = getLocalDateString();
@@ -124,7 +120,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
         plan_name: plan ? plan.name : 'No Plan'
       },
       plan,
-      payments: payments || []
+      payments
     });
   } catch (error) {
     console.error(error);
@@ -144,8 +140,8 @@ router.post('/', authMiddleware, async (req, res) => {
     }
 
     // Fetch the plan to know duration
-    const { data: plan, error: pErr } = await db.from('plans').select('*').eq('id', plan_id).maybeSingle();
-    if (pErr) throw pErr;
+    const { rows: plans } = await db.query('SELECT * FROM plans WHERE id = $1', [plan_id]);
+    const plan = plans[0];
     if (!plan) {
       return res.status(400).json({ error: 'Invalid plan selected' });
     }
@@ -155,13 +151,12 @@ router.post('/', authMiddleware, async (req, res) => {
     join.setMonth(join.getMonth() + plan.duration_months);
     const due_date = `${join.getFullYear()}-${String(join.getMonth() + 1).padStart(2, '0')}-${String(join.getDate()).padStart(2, '0')}`;
 
-    const { data: newMember, error: iErr } = await db.from('members')
-      .insert([{ name, phone, plan_id, join_date, due_date }])
-      .select();
+    const { rows } = await db.query(
+      'INSERT INTO members (name, phone, plan_id, join_date, due_date) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [name, phone, plan_id, join_date, due_date]
+    );
 
-    if (iErr) throw iErr;
-
-    res.status(201).json({ success: true, member: newMember[0] });
+    res.status(201).json({ success: true, member: rows[0] });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to create member' });
@@ -180,36 +175,29 @@ router.put('/:id', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const { data: updatedMember, error: uErr } = await db.from('members')
-      .update({ name, phone, plan_id, due_date })
-      .eq('id', id)
-      .select();
+    const { rows } = await db.query(
+      'UPDATE members SET name = $1, phone = $2, plan_id = $3, due_date = $4 WHERE id = $5 RETURNING *',
+      [name, phone, plan_id, due_date, id]
+    );
 
-    if (uErr) throw uErr;
-
-    if (!updatedMember || updatedMember.length === 0) {
+    if (rows.length === 0) {
       return res.status(404).json({ error: 'Member not found' });
     }
 
-    res.json({ success: true, member: updatedMember[0] });
+    res.json({ success: true, member: rows[0] });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to update member' });
   }
 });
 
-// DELETE /api/members/:id - Delete member (Postgres handles payment cascades)
+// DELETE /api/members/:id - Delete member (Postgres handles cascades)
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { data, error } = await db.from('members')
-      .delete()
-      .eq('id', id)
-      .select();
+    const { rows } = await db.query('DELETE FROM members WHERE id = $1 RETURNING *', [id]);
 
-    if (error) throw error;
-
-    if (!data || data.length === 0) {
+    if (rows.length === 0) {
       return res.status(404).json({ error: 'Member not found' });
     }
 
@@ -237,17 +225,17 @@ router.post('/:id/renew', authMiddleware, async (req, res) => {
     }
 
     if (!['cash', 'card', 'upi'].includes(method)) {
-      return res.status(400).json({ error: 'Invalid payment method. Allowed: cash, card, upi' });
+      return res.status(400).json({ error: 'Invalid payment method' });
     }
 
-    const { data: plan, error: pErr } = await db.from('plans').select('*').eq('id', plan_id).maybeSingle();
-    if (pErr) throw pErr;
+    const { rows: plans } = await db.query('SELECT * FROM plans WHERE id = $1', [plan_id]);
+    const plan = plans[0];
     if (!plan) {
       return res.status(400).json({ error: 'Invalid plan selected' });
     }
 
-    const { data: member, error: mErr } = await db.from('members').select('*').eq('id', id).maybeSingle();
-    if (mErr) throw mErr;
+    const { rows: members } = await db.query('SELECT * FROM members WHERE id = $1', [id]);
+    const member = members[0];
     if (!member) {
       return res.status(404).json({ error: 'Member not found' });
     }
@@ -267,25 +255,21 @@ router.post('/:id/renew', authMiddleware, async (req, res) => {
     const newDueDate = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, '0')}-${String(baseDate.getDate()).padStart(2, '0')}`;
 
     // Update member's due date and plan
-    const { error: uErr } = await db.from('members')
-      .update({ plan_id, due_date: newDueDate })
-      .eq('id', id);
-    if (uErr) throw uErr;
+    const { rows: updatedMembers } = await db.query(
+      'UPDATE members SET plan_id = $1, due_date = $2 WHERE id = $3 RETURNING *',
+      [plan_id, newDueDate, id]
+    );
 
     // Record payment
     const paymentDate = todayStr;
-    const { data: paymentInfo, error: payErr } = await db.from('payments')
-      .insert([{ member_id: id, plan_id, amount: parsedAmount, date: paymentDate, method }])
-      .select();
-
-    if (payErr) throw payErr;
-
-    const { data: updatedMember, error: fetchErr } = await db.from('members').select('*').eq('id', id).maybeSingle();
-    if (fetchErr) throw fetchErr;
+    const { rows: paymentInfo } = await db.query(
+      'INSERT INTO payments (member_id, plan_id, amount, date, method) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [id, plan_id, parsedAmount, paymentDate, method]
+    );
 
     res.json({
       success: true,
-      member: updatedMember,
+      member: updatedMembers[0],
       payment: paymentInfo[0]
     });
   } catch (error) {

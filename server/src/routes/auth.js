@@ -7,8 +7,8 @@ const authMiddleware = require('../middleware/auth');
 // GET /api/auth/check-setup - Check if setup is needed
 router.get('/check-setup', async (req, res) => {
   try {
-    const { count, error } = await db.from('admin').select('*', { count: 'exact', head: true });
-    if (error) throw error;
+    const { rows } = await db.query('SELECT COUNT(*) as count FROM admin');
+    const count = parseInt(rows[0]?.count || '0', 10);
     res.json({ setupRequired: count === 0 });
   } catch (error) {
     console.error(error);
@@ -25,20 +25,19 @@ router.post('/setup', async (req, res) => {
     }
 
     // Enforce that only one admin record can ever exist
-    const { count, error: countErr } = await db.from('admin').select('*', { count: 'exact', head: true });
-    if (countErr) throw countErr;
+    const { rows: checkRows } = await db.query('SELECT COUNT(*) as count FROM admin');
+    const count = parseInt(checkRows[0]?.count || '0', 10);
     if (count > 0) {
       return res.status(400).json({ error: 'Setup has already been completed. Only one admin account is allowed.' });
     }
 
     const hashedPassword = hashPassword(password);
-    const { data, error: insertErr } = await db.from('admin')
-      .insert([{ username: username.trim(), password_hash: hashedPassword }])
-      .select();
+    const { rows } = await db.query(
+      'INSERT INTO admin (username, password_hash) VALUES ($1, $2) RETURNING *',
+      [username.trim(), hashedPassword]
+    );
 
-    if (insertErr) throw insertErr;
-
-    const admin = data[0];
+    const admin = rows[0];
     const user = { id: admin.id, username: admin.username, role: 'admin' };
     const token = generateToken(user);
 
@@ -66,12 +65,8 @@ router.post('/login', async (req, res) => {
       return res.status(429).json({ error: `Too many login attempts. Locked out. Try again in ${secondsLeft} seconds.` });
     }
 
-    const { data: admin, error } = await db.from('admin')
-      .select('*')
-      .eq('username', username.trim())
-      .maybeSingle();
-
-    if (error) throw error;
+    const { rows } = await db.query('SELECT * FROM admin WHERE username = $1', [username.trim()]);
+    const admin = rows[0];
 
     if (!admin || !verifyPassword(password, admin.password_hash)) {
       failedAttempts++;
@@ -111,23 +106,15 @@ router.post('/change-password', authMiddleware, async (req, res) => {
     }
 
     // Verify current admin record
-    const { data: admin, error: fetchErr } = await db.from('admin')
-      .select('*')
-      .eq('id', req.user.id)
-      .maybeSingle();
-
-    if (fetchErr) throw fetchErr;
+    const { rows } = await db.query('SELECT * FROM admin WHERE id = $1', [req.user.id]);
+    const admin = rows[0];
 
     if (!admin || !verifyPassword(oldPassword, admin.password_hash)) {
       return res.status(401).json({ error: 'Incorrect old password' });
     }
 
     const newHashed = hashPassword(newPassword);
-    const { error: updateErr } = await db.from('admin')
-      .update({ password_hash: newHashed })
-      .eq('id', req.user.id);
-
-    if (updateErr) throw updateErr;
+    await db.query('UPDATE admin SET password_hash = $1 WHERE id = $2', [newHashed, req.user.id]);
 
     res.json({ success: true, message: 'Password updated successfully' });
   } catch (error) {

@@ -27,11 +27,10 @@ router.get('/', authMiddleware, async (req, res) => {
     const limitDays = parseInt(req.query.days, 10) || 7;
     const todayStr = getLocalDateString();
     
-    const { data: members, error } = await db.from('members').select('*');
-    if (error) throw error;
+    const { rows: members } = await db.query('SELECT * FROM members');
     
     const results = [];
-    (members || []).forEach(member => {
+    members.forEach(member => {
       const daysLeft = getDaysDifference(member.due_date, todayStr);
       // Expiring soon: due in the future, within the threshold
       if (daysLeft >= 0 && daysLeft <= limitDays) {
