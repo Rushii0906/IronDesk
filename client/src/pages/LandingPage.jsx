@@ -13,25 +13,28 @@ export default function LandingPage() {
   const [contactSubject, setContactSubject] = useState('Membership Inquiry');
   const [contactMessage, setContactMessage] = useState('');
 
-  // Fetch plans dynamically from the public API endpoint
+  // Fetch plans dynamically from the public API endpoint with automated 5s polling updates
   useEffect(() => {
-    if (activeTab === 'plans' || activeTab === 'home') {
-      const fetchPublicPlans = async () => {
-        try {
-          const res = await fetch('/api/plans');
-          if (res.ok) {
-            const data = await res.json();
-            setPlans(data);
-          }
-        } catch (err) {
-          console.error('Failed to load plans:', err);
-        } finally {
-          setPlansLoading(false);
+    const fetchPublicPlans = async () => {
+      try {
+        const res = await fetch('/api/plans');
+        if (res.ok) {
+          const data = await res.json();
+          setPlans(data);
         }
-      };
-      fetchPublicPlans();
-    }
-  }, [activeTab]);
+      } catch (err) {
+        console.error('Failed to load plans:', err);
+      } finally {
+        setPlansLoading(false);
+      }
+    };
+
+    fetchPublicPlans();
+
+    // Keep the plans list fresh by polling every 5 seconds
+    const interval = setInterval(fetchPublicPlans, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Convert contact form submission to a local mailto redirect
   const handleContactSubmit = (e) => {
