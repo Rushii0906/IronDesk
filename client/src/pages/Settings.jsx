@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Edit2, Trash2, Key, LogOut, CheckCircle2, ShieldAlert, X, AlertTriangle, Sparkles, Download } from 'lucide-react';
+import { Plus, Edit2, Trash2, Key, LogOut, CheckCircle2, ShieldAlert, X, AlertTriangle, Sparkles, Download, Users, UserPlus } from 'lucide-react';
 
 export default function Settings() {
   const { token, logout } = useAuth();
@@ -30,6 +30,75 @@ export default function Settings() {
   const [securitySuccess, setSecuritySuccess] = useState('');
   const [securityError, setSecurityError] = useState('');
   const [securityLoading, setSecurityLoading] = useState(false);
+
+  // Admin Users
+  const [admins, setAdmins] = useState([]);
+  const [isAddAdminOpen, setIsAddAdminOpen] = useState(false);
+  const [newAdminUsername, setNewAdminUsername] = useState('');
+  const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [adminFormError, setAdminFormError] = useState('');
+  const [adminActionLoading, setAdminActionLoading] = useState(false);
+  const [adminSuccess, setAdminSuccess] = useState('');
+  const { user: currentUser } = useAuth();
+
+  const fetchAdmins = async () => {
+    try {
+      const res = await fetch('/api/auth/admins', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAdmins(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch admins:', err);
+    }
+  };
+
+  const handleAddAdmin = async (e) => {
+    e.preventDefault();
+    setAdminFormError('');
+    setAdminSuccess('');
+    if (!newAdminUsername.trim() || !newAdminPassword) {
+      setAdminFormError('Username and password are required');
+      return;
+    }
+    setAdminActionLoading(true);
+    try {
+      const res = await fetch('/api/auth/admins', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ username: newAdminUsername.trim(), password: newAdminPassword })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create admin');
+      setAdminSuccess(`Admin "${data.admin.username}" created successfully.`);
+      setNewAdminUsername('');
+      setNewAdminPassword('');
+      setIsAddAdminOpen(false);
+      fetchAdmins();
+    } catch (err) {
+      setAdminFormError(err.message);
+    } finally {
+      setAdminActionLoading(false);
+    }
+  };
+
+  const handleDeleteAdmin = async (adminId, username) => {
+    if (!window.confirm(`Remove admin "${username}"? They will no longer be able to log in.`)) return;
+    try {
+      const res = await fetch(`/api/auth/admins/${adminId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Delete failed');
+      setAdminSuccess(`Admin "${username}" removed.`);
+      fetchAdmins();
+    } catch (err) {
+      setAdminFormError(err.message);
+    }
+  };
 
   const handleDownload = async (filename) => {
     try {
@@ -70,6 +139,7 @@ export default function Settings() {
 
   useEffect(() => {
     fetchPlans();
+    fetchAdmins();
   }, [token]);
 
   // Open Add Plan Modal
@@ -396,6 +466,66 @@ export default function Settings() {
             </form>
           </div>
 
+          {/* Admin Users Panel */}
+          <div className="bg-gym-panel border border-gym-border rounded-2xl p-5 shadow-xl">
+            <div className="flex items-center justify-between mb-4 border-b border-[#24262E] pb-3">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 rounded-lg bg-blue-500 bg-opacity-10 text-blue-400 flex items-center justify-center">
+                  <Users className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-display font-bold text-white text-sm">ADMIN ACCOUNTS</h3>
+                  <p className="text-[10px] text-gray-500">Manage who can access this console.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setIsAddAdminOpen(true); setAdminFormError(''); setAdminSuccess(''); }}
+                className="h-8 bg-gym-accent hover:bg-gym-accentHover text-black font-semibold rounded-lg px-3 flex items-center space-x-1 transition-all text-xs"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Add</span>
+              </button>
+            </div>
+
+            {adminSuccess && (
+              <div className="mb-3 bg-green-500 bg-opacity-10 border border-green-500 border-opacity-20 text-gym-activeText p-2.5 rounded-xl text-xs flex items-center space-x-2">
+                <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>{adminSuccess}</span>
+              </div>
+            )}
+            {adminFormError && (
+              <div className="mb-3 bg-red-500 bg-opacity-10 border border-red-500 border-opacity-20 text-gym-expiredText p-2.5 rounded-xl text-xs flex items-center space-x-2">
+                <ShieldAlert className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>{adminFormError}</span>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              {admins.map(adm => (
+                <div key={adm.id} className="flex items-center justify-between bg-[#24262E] rounded-xl px-3 py-2.5">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-6 rounded-full bg-gym-accent bg-opacity-15 text-gym-accent flex items-center justify-center text-[10px] font-bold">
+                      {adm.username[0].toUpperCase()}
+                    </div>
+                    <span className="text-sm text-white font-medium">{adm.username}</span>
+                    {currentUser?.id === adm.id && (
+                      <span className="text-[9px] bg-gym-accent bg-opacity-20 text-gym-accent px-1.5 py-0.5 rounded-full font-semibold">YOU</span>
+                    )}
+                  </div>
+                  {currentUser?.id !== adm.id && (
+                    <button
+                      onClick={() => handleDeleteAdmin(adm.id, adm.username)}
+                      className="w-7 h-7 rounded-lg bg-gym-expiredBg hover:bg-red-600 hover:text-white border border-red-500 border-opacity-10 text-gym-expiredText flex items-center justify-center transition-all"
+                      title="Remove admin"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* System Control logout */}
           <div className="bg-gym-panel border border-gym-border rounded-2xl p-5 shadow-xl">
             <h3 className="font-display font-bold text-white text-sm mb-1">OPERATOR CONTROL</h3>
@@ -585,6 +715,66 @@ export default function Settings() {
                 {planActionLoading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : 'Delete'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: ADD ADMIN */}
+      {isAddAdminOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="bg-[#1D1F25] border border-gym-border rounded-2xl w-full max-w-md p-6 relative shadow-2xl">
+            <button onClick={() => setIsAddAdminOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white">
+              <X className="w-5 h-5" />
+            </button>
+            <div className="flex items-center space-x-3 mb-5">
+              <div className="w-9 h-9 rounded-xl bg-gym-accent bg-opacity-10 text-gym-accent flex items-center justify-center">
+                <UserPlus className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-display font-bold text-white">ADD ADMIN USER</h3>
+                <p className="text-[10px] text-gray-500">They can log in and manage the console.</p>
+              </div>
+            </div>
+            {adminFormError && (
+              <div className="mb-4 bg-red-500 bg-opacity-10 border border-red-500 border-opacity-20 text-gym-expiredText p-3 rounded-xl text-xs flex items-center space-x-2">
+                <AlertTriangle className="w-4 h-4" />
+                <span>{adminFormError}</span>
+              </div>
+            )}
+            <form onSubmit={handleAddAdmin} className="space-y-4">
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-2">Username</label>
+                <input
+                  type="text"
+                  required
+                  value={newAdminUsername}
+                  onChange={e => setNewAdminUsername(e.target.value)}
+                  placeholder="e.g. manager01"
+                  className="w-full h-11 bg-[#24262E] border border-gym-border rounded-xl px-4 text-sm text-white focus:outline-none focus:border-gym-accent"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-2">Password</label>
+                <input
+                  type="password"
+                  required
+                  value={newAdminPassword}
+                  onChange={e => setNewAdminPassword(e.target.value)}
+                  placeholder="Min. 6 characters"
+                  className="w-full h-11 bg-[#24262E] border border-gym-border rounded-xl px-4 text-sm text-white focus:outline-none focus:border-gym-accent"
+                />
+              </div>
+              <p className="text-[10px] text-gray-500 leading-relaxed">
+                Share these credentials with the new admin. They can change their password after logging in.
+              </p>
+              <button
+                type="submit"
+                disabled={adminActionLoading}
+                className="w-full h-11 bg-gym-accent hover:bg-gym-accentHover text-black font-semibold rounded-xl transition-all duration-150 flex items-center justify-center mt-2 disabled:opacity-50"
+              >
+                {adminActionLoading ? <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin"></div> : 'Create Admin Account'}
+              </button>
+            </form>
           </div>
         </div>
       )}
