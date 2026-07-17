@@ -101,9 +101,13 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal Server Error' });
 });
 
-// Start listening
-const { initBackupScheduler } = require('./utils/backup');
-app.listen(PORT, () => {
-  console.log(`IronDesk Server running on port ${PORT}`);
-  initBackupScheduler();
-});
+// Start listening if not in Vercel serverless environment
+if (!process.env.VERCEL) {
+  const { initBackupScheduler } = require('./utils/backup');
+  app.listen(PORT, () => {
+    console.log(`IronDesk Server running on port ${PORT}`);
+    initBackupScheduler();
+  });
+}
+
+module.exports = app;

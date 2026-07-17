@@ -5,10 +5,11 @@ const authMiddleware = require('../middleware/auth');
 const { sanitizeHtml } = require('../utils/sanitize');
 
 // GET /api/plans - Get all plans
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const plans = db.prepare('SELECT * FROM plans').all();
-    res.json(plans);
+    const { data, error } = await db.from('plans').select('*').order('name');
+    if (error) throw error;
+    res.json(data || []);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to fetch plans' });
@@ -16,7 +17,7 @@ router.get('/', (req, res) => {
 });
 
 // POST /api/plans - Create a new plan
-router.post('/', authMiddleware, (req, res) => {
+router.post('/', authMiddleware, async (req, res) => {
   try {
     let { name, duration_months, price } = req.body;
     name = sanitizeHtml(name);
@@ -31,11 +32,12 @@ router.post('/', authMiddleware, (req, res) => {
       return res.status(400).json({ error: 'Duration and Price must be positive values' });
     }
 
-    const info = db.prepare('INSERT INTO plans (name, duration_months, price) VALUES (?, ?, ?)')
-      .run(name, duration, rate);
+    const { data, error } = await db.from('plans')
+      .insert([{ name, duration_months: duration, price: rate }])
+      .select();
 
-    const newPlan = db.prepare('SELECT * FROM plans WHERE id = ?').get(info.lastInsertRowid);
-    res.status(201).json({ success: true, plan: newPlan });
+    if (error) throw error;
+    res.status(201).json({ success: true, plan: data[0] });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to create plan' });
@@ -43,7 +45,7 @@ router.post('/', authMiddleware, (req, res) => {
 });
 
 // PUT /api/plans/:id - Update an existing plan
-router.put('/:id', authMiddleware, (req, res) => {
+router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     let { name, duration_months, price } = req.body;
@@ -59,15 +61,17 @@ router.put('/:id', authMiddleware, (req, res) => {
       return res.status(400).json({ error: 'Duration and Price must be positive values' });
     }
 
-    const result = db.prepare('UPDATE plans SET name = ?, duration_months = ?, price = ? WHERE id = ?')
-      .run(name, duration, rate, id);
+    const { data, error } = await db.from('plans')
+      .update({ name, duration_months: duration, price: rate })
+      .eq('id', id)
+      .select();
 
-    if (result.changes === 0) {
+    if (error) throw error;
+    if (!data || data.length === 0) {
       return res.status(404).json({ error: 'Plan not found' });
     }
 
-    const updatedPlan = db.prepare('SELECT * FROM plans WHERE id = ?').get(id);
-    res.json({ success: true, plan: updatedPlan });
+    res.json({ success: true, plan: data[0] });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to update plan' });
@@ -75,12 +79,16 @@ router.put('/:id', authMiddleware, (req, res) => {
 });
 
 // DELETE /api/plans/:id - Delete a plan
-router.delete('/:id', authMiddleware, (req, res) => {
+router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const result = db.prepare('DELETE FROM plans WHERE id = ?').run(id);
+    const { data, error } = await db.from('plans')
+      .delete()
+      .eq('id', id)
+      .select();
 
-    if (result.changes === 0) {
+    if (error) throw error;
+    if (!data || data.length === 0) {
       return res.status(404).json({ error: 'Plan not found' });
     }
 

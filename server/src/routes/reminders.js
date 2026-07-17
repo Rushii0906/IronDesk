@@ -22,15 +22,16 @@ function getDaysDifference(dueDateStr, todayStr) {
 }
 
 // GET /api/reminders - List members expiring within N days
-router.get('/', authMiddleware, (req, res) => {
+router.get('/', authMiddleware, async (req, res) => {
   try {
     const limitDays = parseInt(req.query.days, 10) || 7;
     const todayStr = getLocalDateString();
     
-    const members = db.prepare('SELECT * FROM members').all();
+    const { data: members, error } = await db.from('members').select('*');
+    if (error) throw error;
     
     const results = [];
-    members.forEach(member => {
+    (members || []).forEach(member => {
       const daysLeft = getDaysDifference(member.due_date, todayStr);
       // Expiring soon: due in the future, within the threshold
       if (daysLeft >= 0 && daysLeft <= limitDays) {

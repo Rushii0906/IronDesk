@@ -24,17 +24,20 @@ function getDaysDifference(dueDateStr, todayStr) {
 }
 
 // GET /api/dashboard - Get operational statistics
-router.get('/', authMiddleware, (req, res) => {
+router.get('/', authMiddleware, async (req, res) => {
   try {
     const todayStr = getLocalDateString();
     const currentMonthPrefix = todayStr.substring(0, 7); // e.g. "2026-07"
 
     // Fetch all members
-    const members = db.prepare('SELECT * FROM members').all();
+    const { data: members, error: mErr } = await db.from('members').select('*');
+    if (mErr) throw mErr;
     
-    // Fetch all payments in the current month
-    const payments = db.prepare('SELECT * FROM payments').all();
-    const currentMonthPayments = payments.filter(p => p.date && p.date.startsWith(currentMonthPrefix));
+    // Fetch all payments
+    const { data: payments, error: pErr } = await db.from('payments').select('*');
+    if (pErr) throw pErr;
+
+    const currentMonthPayments = (payments || []).filter(p => p.date && p.date.startsWith(currentMonthPrefix));
     const monthlyRevenue = currentMonthPayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
     let activeCount = 0;
@@ -42,7 +45,7 @@ router.get('/', authMiddleware, (req, res) => {
     let expiredCount = 0;
     const attentionList = [];
 
-    members.forEach(member => {
+    (members || []).forEach(member => {
       const daysLeft = getDaysDifference(member.due_date, todayStr);
       let status = 'active';
 
@@ -69,14 +72,14 @@ router.get('/', authMiddleware, (req, res) => {
       }
     });
 
-    // Sort attention list by urgency: expired (most overdue first, i.e., days_left ascending/more negative), then expiring (soonest first, i.e., days_left ascending)
+    // Sort attention list by urgency
     attentionList.sort((a, b) => a.days_left - b.days_left);
 
     res.json({
       activeCount,
       expiringCount,
       expiredCount,
-      totalCount: members.length,
+      totalCount: (members || []).length,
       monthlyRevenue,
       attentionList
     });
